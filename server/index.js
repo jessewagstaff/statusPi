@@ -1,6 +1,7 @@
 const connect = require('connect');
 const fetch = require('node-fetch');
 const http = require('http');
+const path = require('path');
 const serveStatic = require('serve-static');
 const si = require('systeminformation');
 const websocket = require('ws');
@@ -171,7 +172,7 @@ const getNowPlaying = async () => {
 const app = connect();
 getNowPlaying();
 
-app.use(serveStatic('dist'));
+app.use(serveStatic(path.join(__dirname, '..', 'dist')));
 
 app.use('/status', async (_, res) => {
   res.setHeader('Content-Type', 'application/json');
@@ -198,10 +199,9 @@ app.use('/station', (req, res) => {
   wsSend({
     type: 'weather',
     inside: Number(params.get('tempinf')),
-    outside: Number(params.get('tempf'))
+    outside: Number(params.get('tempf')),
   });
   res.end('ok');
 });
-
 
 const server = http.createServer(app).listen(port);
