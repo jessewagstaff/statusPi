@@ -37,10 +37,21 @@ section {
   grid-template-rows: auto 1fr;
   grid-gap: 15px;
   height: 250px;
+  overflow: hidden;
+}
+
+main {
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 18px;
+}
+
+.playing main {
+  font-size: 28px;
+  line-height: 28px;
 }
 
 .playing h1 {
-  font-size: 30px;
+  font-size: 35px;
   line-height: 33px;
   color: white;
   margin-bottom: 10px;
