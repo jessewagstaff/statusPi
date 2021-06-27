@@ -14,7 +14,6 @@
 </template>
 <script setup>
 import { defineProps, ref, watch } from 'vue';
-import heartbeat from '../heartbeat';
 import SparklineAreaChart from './SparklineAreaChart.vue';
 
 const props = defineProps({
@@ -64,28 +63,14 @@ const pushValue = (val, lastVal = 0) => {
     return;
   }
 
-  if (chartData.value.length > 10) {
+  if (chartData.value.length >= 10) {
     reachedLength = true;
-    return pushValue(val, lastVal);
   }
 
   chartData.value = [...chartData.value, val];
 };
 
 watch(() => props.value, pushValue);
-
-watch(
-  () => heartbeat.value,
-  (current) => {
-    if (!lastUpdate) return;
-    if (current - lastUpdate >= 60000) {
-      const mostRecent = chartData.value[chartData.value.length - 1];
-      if (!chartData.value.every((v) => v === mostRecent)) {
-        pushValue(mostRecent);
-      }
-    }
-  }
-);
 </script>
 <style scoped>
 section {
