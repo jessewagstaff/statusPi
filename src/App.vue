@@ -50,6 +50,10 @@ const openSocket = () => {
     if (type == 'nowPlaying') {
       Object.assign(nowPlaying, payload);
     }
+
+    if (type == 'refresh') {
+      window.location.reload();
+    }
   });
 
   socket.addEventListener('close', () => {

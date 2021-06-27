@@ -30,15 +30,6 @@ const data = {
   weatherData: {},
 };
 
-process.once('SIGTERM', async () => {
-  console.log('closing http server');
-  try {
-    await server.close();
-  } finally {
-    process.exit(0);
-  }
-});
-
 const wss = new websocket.Server({ port: port + 1 });
 
 const wsSend = (payload = {}) => {
@@ -204,4 +195,21 @@ app.use('/station', (req, res) => {
   res.end('ok');
 });
 
+app.use('/refresh', (_, res) => {
+  wsSend({
+    type: 'refresh',
+  });
+  res.end('done');
+});
+
 const server = http.createServer(app).listen(port);
+
+process.once('SIGTERM', async () => {
+  console.log('closing http server');
+  try {
+    await server.close();
+    wss.clients.forEach((ws) => ws.terminate());
+  } finally {
+    process.exit(0);
+  }
+});
