@@ -1,5 +1,5 @@
 const connect = require('connect');
-const fetch = require('node-fetch');
+const fetch = require('@vercel/fetch-cached-dns')(require('node-fetch'));
 const http = require('http');
 const path = require('path');
 const serveStatic = require('serve-static');
