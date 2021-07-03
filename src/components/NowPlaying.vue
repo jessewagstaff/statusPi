@@ -38,14 +38,7 @@ section {
   grid-gap: 15px;
   height: 250px;
   overflow: hidden;
-}
-
-main {
   font-family: 'Roboto Condensed', sans-serif;
-  font-size: 18px;
-}
-
-.playing main {
   font-size: 28px;
   line-height: 28px;
 }
