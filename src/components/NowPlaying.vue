@@ -43,11 +43,14 @@ section {
   line-height: 28px;
 }
 
-.playing h1 {
+h1 {
   font-size: 35px;
   line-height: 33px;
-  color: white;
   margin-bottom: 10px;
+}
+
+.playing h1 {
+  color: white;
 }
 
 .playing img {
