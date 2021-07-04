@@ -12,9 +12,7 @@ const spotifyAuth = {
   access_token: null,
   agent: new https.Agent({
     keepAlive: true,
-    keepAliveMsecs: 30000,
-    maxSockets: 1,
-    timeout: 60000, // active socket keepalive for 60 seconds
+    keepAliveMsecs: 30000
   }),
   client_id: 'b51f5c10b44d411ea644217c7365ac36',
   client_secret: '07d84c5f7f9641c2b5965cfa77500c4c',
@@ -30,6 +28,9 @@ const data = {
     playing: false,
   },
   status: 'ok',
+  ocean: {
+    tideLastModified: null,
+  },
   weatherData: {},
 };
 
@@ -198,12 +199,71 @@ const getNowPlaying = () => {
   spotifyAuth.code = null;
 };
 
+const getOceanData = () => {
+  const headers = {};
+
+  if (data.ocean.tideLastModified) {
+    headers['if-modified-since'] = data.ocean.tideLastModified;
+  }
+
+  const req = https
+    .request(
+      {
+        method: 'GET',
+        timeout: 60000,
+        port: 443,
+        hostname: 'cdip.ucsd.edu',
+        path: '/recent/model_images/sf.png',
+        headers,
+      },
+      (res) => {
+        const { statusCode, statusMessage } = res;
+        data.ocean.tideResponse = statusCode;
+
+        if (statusCode === 200) {
+          data.ocean.tideLastModified = res.headers['last-modified'];
+
+          res.setEncoding('base64');
+
+          let img = `data:${res.headers['content-type']};base64, `;
+          res.on('data', (chunk) => {
+            img += chunk;
+          });
+
+          res.on('end', () => {
+            wsSend({
+              type: 'ocean',
+              swellChart: img,
+            });
+          });
+        }
+
+        // Ready another request (every 20 minutes)
+        setTimeout(getOceanData, 1200000);
+      }
+    )
+    .on('error', (error) => {
+      data.ocean.tideError = error;
+      // try again in a bit
+      setTimeout(getOceanData, 60000);
+    });
+  req.end();
+};
+
+let firstConnect = true;
 wss.on('connection', (socket) => {
   socket.send(JSON.stringify({ type: 'connected' }));
+
+  if (firstConnect) {
+    setTimeout(() => {
+      getNowPlaying();
+      getOceanData();
+    }, 1000);
+  }
+  firstConnect = false;
 });
 
 const app = connect();
-getNowPlaying();
 
 app.use(serveStatic(path.join(__dirname, '..', 'dist')));
 

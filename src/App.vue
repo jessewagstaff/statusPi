@@ -18,7 +18,7 @@
   <Stat class="Stat-Solar" title="Solar (kWh)" />
   <Stat class="Stat-Battery" title="Battery (kWh)" />
   <Stat title="Grid (Wh)" />
-  <SwellHeight />
+  <SwellHeight v-bind="ocean" />
   <NowPlaying v-bind="nowPlaying" />
 </template>
 
@@ -38,6 +38,10 @@ const nowPlaying = reactive({
   playing: false,
 });
 
+const ocean = reactive({
+  swellChart: null
+})
+
 const openSocket = () => {
   const socket = new WebSocket('ws://localhost:8081', 'status-pi');
 
@@ -49,6 +53,10 @@ const openSocket = () => {
 
     if (type == 'nowPlaying') {
       Object.assign(nowPlaying, payload);
+    }
+
+    if (type == 'ocean') {
+      Object.assign(ocean, payload);
     }
 
     if (type == 'refresh') {
