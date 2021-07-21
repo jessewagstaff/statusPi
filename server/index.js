@@ -8,11 +8,22 @@ const websocket = require('ws');
 
 const port = 8080;
 
+const timers = {};
+const retry = (callback, ms) => {
+  if (!callback.name) {
+    throw new TypeError('Only accepts named functions');
+  }
+  if (callback.name in timers) {
+    clearTimeout(timers[callback.name]);
+  }
+  timers[callback.name] = setTimeout(callback, ms);
+};
+
 const spotifyAuth = {
   access_token: null,
   agent: new https.Agent({
     keepAlive: true,
-    keepAliveMsecs: 30000
+    keepAliveMsecs: 30000,
   }),
   client_id: 'b51f5c10b44d411ea644217c7365ac36',
   client_secret: '07d84c5f7f9641c2b5965cfa77500c4c',
@@ -65,7 +76,7 @@ const handleSpotifyError = (error = { type: 'unknown error' }) => {
   };
 
   spotifySendStopPlaying();
-  setTimeout(getNowPlaying, 30000);
+  retry(getNowPlaying, 30000);
 };
 
 const handleSpotifyResponse = (res) => {
@@ -98,7 +109,7 @@ const handleSpotifyResponse = (res) => {
             playing: parsedData.is_playing,
           });
           // Fast refresh mode
-          setTimeout(getNowPlaying, 2500);
+          retry(getNowPlaying, 2500);
           return;
         }
 
@@ -137,7 +148,7 @@ const handleSpotifyResponse = (res) => {
   // 204 = spotify says hold back. nothing is playing
 
   spotifySendStopPlaying();
-  setTimeout(getNowPlaying, 60000);
+  retry(getNowPlaying, 60000);
 };
 
 const getNowPlaying = () => {
@@ -154,7 +165,7 @@ const getNowPlaying = () => {
           method: 'GET',
           path: '/v1/me/player/currently-playing',
           port: 443,
-          timeout: 60000,
+          timeout: 2000,
         },
         handleSpotifyResponse
       )
@@ -188,7 +199,7 @@ const getNowPlaying = () => {
         hostname: 'accounts.spotify.com',
         method: 'POST',
         path: '/api/token',
-        timeout: 60000,
+        timeout: 2000,
       },
       handleSpotifyResponse
     )
@@ -210,7 +221,7 @@ const getOceanData = () => {
     .request(
       {
         method: 'GET',
-        timeout: 60000,
+        timeout: 2000,
         port: 443,
         hostname: 'cdip.ucsd.edu',
         path: '/recent/model_images/sf.png',
@@ -218,6 +229,7 @@ const getOceanData = () => {
       },
       (res) => {
         const { statusCode, statusMessage } = res;
+        data.ocean.tideMessage = statusMessage;
         data.ocean.tideResponse = statusCode;
 
         if (statusCode === 200) {
@@ -239,28 +251,32 @@ const getOceanData = () => {
         }
 
         // Ready another request (every 20 minutes)
-        setTimeout(getOceanData, 1200000);
+        retry(getOceanData, 1200000);
       }
     )
     .on('error', (error) => {
-      data.ocean.tideError = error;
+      data.ocean.tideMessage = error;
       // try again in a bit
-      setTimeout(getOceanData, 60000);
+      retry(getOceanData, 60000);
     });
   req.end();
 };
 
-let firstConnect = true;
 wss.on('connection', (socket) => {
   socket.send(JSON.stringify({ type: 'connected' }));
+  data.ocean.tideLastModified = null;
+  setTimeout(() => {
+    getNowPlaying();
+    getOceanData();
 
-  if (firstConnect) {
-    setTimeout(() => {
-      getNowPlaying();
-      getOceanData();
-    }, 1000);
-  }
-  firstConnect = false;
+    if (data.weatherData.tempf) {
+      wsSend({
+        type: 'weather',
+        inside: Number(data.weatherData.tempinf),
+        outside: Number(data.weatherData.tempf),
+      });
+    }
+  }, 1000);
 });
 
 const app = connect();
@@ -290,11 +306,19 @@ app.use('/spotify', (req, res) => {
 app.use('/station', (req, res) => {
   const params = new URLSearchParams(req.url.split('?').pop());
   data.weatherData = Object.fromEntries(params.entries());
-  wsSend({
+
+  const msg = {
     type: 'weather',
-    inside: Number(params.get('tempinf')),
-    outside: Number(params.get('tempf')),
-  });
+  };
+
+  if (params.has('tempinf')) {
+    msg.inside = Number(params.get('tempinf'));
+  }
+  if (params.has('tempf')) {
+    msg.outside = Number(params.get('tempf'));
+  }
+
+  wsSend(msg);
   res.end('ok');
 });
 
