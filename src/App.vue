@@ -14,10 +14,10 @@
       :fixed="0"
     />
   </div>
-  <Stat class="Stat-House" title="House Usage (kWh)" />
-  <Stat class="Stat-Solar" title="Solar (kWh)" />
-  <Stat class="Stat-Battery" title="Battery (kWh)" />
-  <Stat title="Grid (Wh)" />
+  <Stat class="Stat-House" title="House Usage (W)" :value="house.usage"  />
+  <Stat class="Stat-Solar" title="Solar (W)" :value="house.solar" />
+  <Stat class="Stat-Battery" title="Battery (W)" :value="house.battery" />
+  <Stat title="Grid (W)" :value="house.grid" />
   <SwellHeight v-bind="ocean" />
   <NowPlaying v-bind="nowPlaying" />
 </template>
@@ -40,7 +40,14 @@ const nowPlaying = reactive({
 
 const ocean = reactive({
   swellChart: null
-})
+});
+
+const house = reactive({
+  usage: null,
+  solar: null,
+  battery: null,
+  grid: null
+});
 
 const openSocket = () => {
   const socket = new WebSocket('ws://localhost:8081', 'status-pi');
@@ -49,6 +56,10 @@ const openSocket = () => {
     const { type, ...payload } = JSON.parse(data);
     if (type === 'weather') {
       Object.assign(weather, payload);
+    }
+
+    if (type == 'house') {
+      Object.assign(house, payload);
     }
 
     if (type == 'nowPlaying') {
