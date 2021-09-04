@@ -1,4 +1,5 @@
 const connect = require('connect');
+const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const path = require('path');
@@ -31,7 +32,12 @@ const spotifyAuth = {
   redirect_uri: `http://localhost:${port}/spotify/`,
   refresh_token: null,
   scope: 'user-read-currently-playing',
+  token_path: '/tmp/spotify_token',
 };
+
+try {
+  spotifyAuth.refresh_token = fs.readFileSync(spotifyAuth.token_path, 'utf8');
+} catch (err) {}
 
 const data = {
   spotify: {
@@ -115,6 +121,7 @@ const handleSpotifyResponse = (res) => {
 
         if (parsedData.access_token) {
           Object.assign(spotifyAuth, parsedData);
+          fs.writeFileSync(spotifyAuth.token_path, spotifyAuth.refresh_token);
           getNowPlaying();
           return;
         }
@@ -141,6 +148,7 @@ const handleSpotifyResponse = (res) => {
 
   if (statusCode === 400) {
     // Bad request means we should start over
+    data.spotify.status = 'Bad Request. Clearing tokens'
     spotifyAuth.access_token = null;
     spotifyAuth.refresh_token = null;
   }
@@ -286,6 +294,7 @@ app.use(serveStatic(path.join(__dirname, '..', 'dist')));
 app.use('/status', async (_, res) => {
   res.setHeader('Content-Type', 'application/json');
 
+  data.display = wss.clients.size ? 'connected' : 'disconnected';
   data.status = await si.cpuTemperature();
   res.end(JSON.stringify(data));
 });
