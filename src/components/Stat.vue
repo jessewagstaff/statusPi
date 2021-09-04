@@ -31,9 +31,9 @@ const props = defineProps({
   },
 });
 
-const chartData = ref(props.value ? [props.value] : [0, 100, 0]);
-const max = ref(null);
-const min = ref(null);
+const chartData = ref(props.value ? [props.value] : [0,0,0]);
+const max = ref(1);
+const min = ref(0);
 let lastUpdate = null;
 let reachedLength = false;
 let minMaxDay = null;
