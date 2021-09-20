@@ -2,6 +2,7 @@ const connect = require('connect');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const os = require('os');
 const path = require('path');
 const serveStatic = require('serve-static');
 const si = require('systeminformation');
@@ -29,7 +30,7 @@ const spotifyAuth = {
   client_id: 'b51f5c10b44d411ea644217c7365ac36',
   client_secret: '07d84c5f7f9641c2b5965cfa77500c4c',
   code: null,
-  redirect_uri: `http://localhost:${port}/spotify/`,
+  redirect_uri: null,
   refresh_token: null,
   scope: 'user-read-currently-playing',
   token_path: '/tmp/spotify_token',
@@ -40,13 +41,15 @@ try {
 } catch (err) {}
 
 const data = {
+  enphase: {
+    status: 'init',
+  },
+  ocean: {
+    tideLastModified: null,
+  },
   spotify: {
     status: 'init',
     playing: false,
-  },
-  status: 'ok',
-  ocean: {
-    tideLastModified: null,
   },
   weatherData: {},
 };
@@ -148,7 +151,10 @@ const handleSpotifyResponse = (res) => {
 
   if (statusCode === 400) {
     // Bad request means we should start over
-    data.spotify.status = 'Bad Request. Clearing tokens'
+    data.spotify.status = 'Bad Request. Clearing tokens: ';
+    res.on('data', (chunk) => {
+      data.spotify.status += chunk;
+    });
     spotifyAuth.access_token = null;
     spotifyAuth.refresh_token = null;
   }
@@ -184,7 +190,7 @@ const getNowPlaying = () => {
 
   if (!spotifyAuth.refresh_token && !spotifyAuth.code) {
     // We have nothing
-    data.spotify.status = `Requires Auth: https://accounts.spotify.com/en/authorize?client_id=${spotifyAuth.client_id}&response_type=code&redirect_uri=${spotifyAuth.redirect_uri}&scope=${spotifyAuth.scope}`;
+    data.spotify.status = 'Requires Auth @ /spotify';
     return;
   }
 
@@ -270,10 +276,68 @@ const getOceanData = () => {
   req.end();
 };
 
+const getEnphaseData = () => {
+  data.enphase.status = 'waiting...';
+  const req = http
+    .request(
+      {
+        method: 'GET',
+        port: 80,
+        hostname: '192.168.86.124',
+        path: '/ivp/meters/readings',
+      },
+      (res) => {
+        const { statusCode: code, statusMessage: status } = res;
+        data.enphase = {
+          code,
+          status,
+        };
+
+        if (code === 200) {
+          let resData = '';
+          res.on('data', (chunk) => {
+            resData += chunk;
+          });
+
+          res.on('end', () => {
+            try {
+              const parsedData = JSON.parse(resData);
+              const production = parsedData[0].activePower;
+              const consumption = parsedData[1].activePower;
+              const grid = consumption - production;
+              wsSend({
+                type: 'house',
+                usage: consumption / 1000,
+                solar: production / 1000,
+                grid: grid / 1000,
+              });
+              data.enphase.lastUpdate = new Date(
+                parsedData[0].timestamp * 1000
+              ).toUTCString();
+            } catch ({ name, message }) {
+              data.enphase.error = {
+                name,
+                message,
+              };
+            }
+          });
+        }
+
+        retry(getEnphaseData, 30000);
+      }
+    )
+    .on('error', (exception) => {
+      data.enphase.status = exception;
+      retry(getEnphaseData, 60000);
+    });
+  req.end();
+};
+
 wss.on('connection', (socket) => {
   socket.send(JSON.stringify({ type: 'connected' }));
   data.ocean.tideLastModified = null;
   setTimeout(() => {
+    getEnphaseData();
     getNowPlaying();
     getOceanData();
 
@@ -293,22 +357,40 @@ app.use(serveStatic(path.join(__dirname, '..', 'dist')));
 
 app.use('/status', async (_, res) => {
   res.setHeader('Content-Type', 'application/json');
-
-  data.display = wss.clients.size ? 'connected' : 'disconnected';
-  data.status = await si.cpuTemperature();
+  data.system = {
+    ...(await si.cpuTemperature()),
+    display: wss.clients.size ? 'connected' : 'disconnected',
+    processUptime: `${Math.trunc(process.uptime() / 3600 / 24)} days`,
+    uptime: `${Math.trunc(os.uptime() / 3600 / 24)} days`,
+  };
   res.end(JSON.stringify(data));
 });
 
 app.use('/spotify', (req, res) => {
   const params = new URLSearchParams(req.url.split('?').pop());
-  spotifyAuth.code = params.get('code');
   if (spotifyAuth.code) {
+    res.end(data.spotify.status)
+  } else if (params.has('code')) {
+    spotifyAuth.code = params.get('code');
     spotifyAuth.access_token = null;
     spotifyAuth.refresh_token = null;
     getNowPlaying();
-    res.end('ok');
+    setTimeout(() => {
+      res.end(data.spotify.status);
+    }, 2000);
+  } else if (!spotifyAuth.refresh_token || spotifyAuth.code) {
+    const authParams = new URLSearchParams();
+    spotifyAuth.redirect_uri = `http://${req.headers.host}/spotify/`;
+    authParams.set('client_id', spotifyAuth.client_id);
+    authParams.set('redirect_uri', spotifyAuth.redirect_uri);
+    authParams.set('scope', spotifyAuth.scope);
+    authParams.set('response_type', 'code');
+    res.writeHead(307, {
+      Location: `https://accounts.spotify.com/en/authorize?${authParams}`,
+    });
+    res.end();
   } else {
-    res.end('missing code');
+    res.end(data.spotify.status);
   }
 });
 
@@ -341,7 +423,6 @@ app.use('/refresh', (_, res) => {
 const server = http.createServer(app).listen(port);
 
 process.once('SIGTERM', async () => {
-  console.log('closing http server');
   try {
     await server.close();
     wss.clients.forEach((ws) => ws.terminate());
