@@ -5,19 +5,26 @@
       style="--primary-color: #abd1f8"
       title="Outside Temp"
       :value="weather.outside"
+      :max="110"
+      :min="30"
       :fixed="0"
     />
     <Stat
       class="Stat-Inside"
       title="Inside Temp"
       :value="weather.inside"
+      :max="110"
+      :min="30"
       :fixed="0"
     />
   </div>
-  <Stat class="Stat-House" title="House Usage (W)" :value="house.usage"  />
-  <Stat class="Stat-Solar" title="Solar (W)" :value="house.solar" />
-  <Stat class="Stat-Battery" title="Battery (W)" :value="house.battery" />
-  <Stat title="Grid (W)" :value="house.grid" />
+  <Stat class="Stat-House" title="House Usage (kW)" :fixed="3" :value="house.usage"  />
+  <Stat class="Stat-Solar" title="Solar (kW)" :fixed="3" :value="house.solar" />
+  <div class="twoUp">
+    <Stat class="Stat-Battery" title="Battery (kW)" :fixed="2" :value="house.battery" />
+    <Stat class="Stat-Battery" title="Charge (%)" :fixed="0" :max="100" :min="0" :value="house.batteryPercent" />
+  </div>
+  <Stat title="Grid (kW)" :fixed="3" :value="house.grid" />
   <SwellHeight v-bind="ocean" />
   <NowPlaying v-bind="nowPlaying" />
 </template>
@@ -43,40 +50,37 @@ const ocean = reactive({
 });
 
 const house = reactive({
-  usage: null,
-  solar: null,
   battery: null,
-  grid: null
+  batteryPercent: null,
+  grid: null,
+  solar: null,
+  usage: null,
 });
 
+const payloadMap = {
+  'weather': weather,
+  'house': house,
+  'nowPlaying': nowPlaying,
+  'ocean': ocean,
+}
+
 const openSocket = () => {
-  const socket = new WebSocket('ws://localhost:8081', 'status-pi');
+  const socket = new WebSocket(`ws://${location.hostname}:8081`, 'status-pi');
 
   socket.addEventListener('message', async ({ data }) => {
     const { type, ...payload } = JSON.parse(data);
-    if (type === 'weather') {
-      Object.assign(weather, payload);
+    if (type in payloadMap) {
+      Object.assign(payloadMap[type], payload);
     }
-
-    if (type == 'house') {
-      Object.assign(house, payload);
-    }
-
-    if (type == 'nowPlaying') {
-      Object.assign(nowPlaying, payload);
-    }
-
-    if (type == 'ocean') {
-      Object.assign(ocean, payload);
-    }
-
     if (type == 'refresh') {
       window.location.reload();
     }
   });
 
+  let timeout = null;
   socket.addEventListener('close', () => {
-    setTimeout(openSocket, 5000);
+    timeout && clearTimeout(timeout);
+    timeout = setTimeout(openSocket, 5000);
   });
 };
 openSocket();
