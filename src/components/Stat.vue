@@ -1,19 +1,19 @@
 <template>
   <section>
     <header>{{ title }}</header>
-    <div>{{ value === null ? 'N/A' : value.toFixed(fixed) }}</div>
+    <div>{{ displayValue }}</div>
     <SparklineAreaChart
       v-if="chartData.length > 1"
       class="Stat_Chart"
       :data="chartData"
       :height="150"
-      :max="max"
-      :min="min"
+      :max="max && Math.max(max, value)"
+      :min="min && Math.min(min, value)"
     />
   </section>
 </template>
 <script setup>
-import { defineProps, ref, watch } from 'vue';
+import { defineProps, computed, ref, watch } from 'vue';
 import SparklineAreaChart from './SparklineAreaChart.vue';
 
 const props = defineProps({
@@ -29,14 +29,18 @@ const props = defineProps({
     type: Number,
     default: 2,
   },
+  max: {
+    type: Number,
+    default: null
+  },
+  min: {
+    type: Number,
+    default: null
+  }
 });
 
-const chartData = ref(props.value ? [props.value] : [0,0,0]);
-const max = ref(1);
-const min = ref(0);
-let lastUpdate = null;
+const chartData = ref(props.value ? [props.value] : [0, 0, 0]);
 let reachedLength = false;
-let minMaxDay = null;
 
 const pushValue = (val, lastVal = 0) => {
   if (val === null) return;
@@ -46,29 +50,29 @@ const pushValue = (val, lastVal = 0) => {
     return;
   }
 
-  lastUpdate = new Date();
-
-  const today = lastUpdate.getDay();
-  if (minMaxDay !== today) {
-    minMaxDay = today;
-    max.value = val;
-    min.value = val;
-  }
-
-  max.value = Math.max(max.value, val);
-  min.value = Math.min(min.value, val);
-
   if (reachedLength) {
     chartData.value = [...chartData.value.slice(1), val];
     return;
   }
 
-  if (chartData.value.length >= 10) {
+  if (chartData.value.length >= 15) {
     reachedLength = true;
   }
 
   chartData.value = [...chartData.value, val];
 };
+
+const displayValue = computed(() => {
+  if (props.value === null) {
+    return 'N/A';
+  }
+
+  if (props.fixed === 0) {
+    return Math.trunc(props.value);
+  }
+
+  return parseFloat(props.value.toFixed(props.fixed));
+});
 
 watch(() => props.value, pushValue);
 </script>

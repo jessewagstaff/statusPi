@@ -34,8 +34,8 @@ const divisor = 0.5;
 const points = computed(() => {
   const len = props.data.length;
 
-  const max = props.max || Math.max(...props.data);
-  const min = props.min || Math.min(...props.data);
+  const max = props.max === null ? Math.max(...props.data) : props.max;
+  const min = props.min === null ? Math.min(...props.data) : props.min;
 
   const vfactor = props.height / (max - min || 2);
   const hfactor = width / (len - (len > 1 ? 1 : 0));
