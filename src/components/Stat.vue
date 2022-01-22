@@ -3,7 +3,6 @@
     <header>{{ title }}</header>
     <div>{{ displayValue }}</div>
     <SparklineAreaChart
-      v-if="chartData.length > 1"
       class="Stat_Chart"
       :data="chartData"
       :height="150"
@@ -31,24 +30,19 @@ const props = defineProps({
   },
   max: {
     type: Number,
-    default: null
+    default: null,
   },
   min: {
     type: Number,
-    default: null
-  }
+    default: null,
+  },
 });
 
-const chartData = ref(props.value ? [props.value] : [0, 0, 0]);
+const chartData = ref(props.value ? [props.value] : []);
 let reachedLength = false;
 
-const pushValue = (val, lastVal = 0) => {
+const pushValue = (val) => {
   if (val === null) return;
-
-  if (lastVal === null) {
-    chartData.value = [val];
-    return;
-  }
 
   if (reachedLength) {
     chartData.value = [...chartData.value.slice(1), val];

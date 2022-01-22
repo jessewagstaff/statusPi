@@ -1,0 +1,5 @@
+export default {
+  clientId: '',
+  clientSecret: '',
+  tokenPath: '/tmp/spotify_token',
+};

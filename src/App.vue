@@ -18,13 +18,13 @@
       :fixed="0"
     />
   </div>
-  <Stat class="Stat-House" title="House Usage (kW)" :fixed="3" :value="house.usage"  />
-  <Stat class="Stat-Solar" title="Solar (kW)" :fixed="3" :value="house.solar" />
+  <Stat class="Stat-House" title="House Consumption (kW)" :fixed="3" :value="house.usage"  />
+  <Stat class="Stat-Solar" title="Solar Production (kW)" :fixed="3" :value="house.solar" />
   <div class="twoUp">
-    <Stat class="Stat-Battery" title="Battery (kW)" :fixed="2" :value="house.battery" />
+    <Stat class="Stat-Battery" title="Battery (kW)" :fixed="1" :value="house.battery" />
     <Stat class="Stat-Battery" title="Charge (%)" :fixed="0" :max="100" :min="0" :value="house.batteryPercent" />
   </div>
-  <Stat title="Grid (kW)" :fixed="3" :value="house.grid" />
+  <Stat title="PG&E Grid (kW)" :fixed="3" :value="house.grid" />
   <SwellHeight v-bind="ocean" />
   <NowPlaying v-bind="nowPlaying" />
 </template>
@@ -58,10 +58,10 @@ const house = reactive({
 });
 
 const payloadMap = {
-  'weather': weather,
   'house': house,
   'nowPlaying': nowPlaying,
   'ocean': ocean,
+  'weather': weather,
 }
 
 const openSocket = () => {
@@ -153,10 +153,10 @@ img {
 }
 
 .Stat-House {
-  --primary-color: rgb(64, 134, 224);
+  --primary-color: rgb(69, 144, 243);
 }
 
 .Stat-Battery {
-  --primary-color: rgb(0, 128, 64);
+  --primary-color: rgb(3, 156, 80);
 }
 </style>
