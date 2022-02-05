@@ -9,7 +9,7 @@ const WMax = 1000000; // 1kW
 
 let jwt = null;
 let lastStatusCode = null;
-let sessionCookie = 'woogle';
+let sessionCookie = null;
 let timeout = null;
 
 const updateSessionCookie = (headers = {}) => {
@@ -206,12 +206,14 @@ const getLiveData = async () =>
               });
               return;
             }
+            throw new Error('Unhandled Status Code');
           } catch (error) {
             clearLiveData();
             updateStatus({
               error,
               errorTs: new Date().toUTCString(),
             });
+            timeout = setTimeout(getLiveData, 80000);
           } finally {
             lastStatusCode = statusCode;
             resolve();
