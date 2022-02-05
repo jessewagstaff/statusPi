@@ -7,24 +7,31 @@ const hostname = '192.168.86.124';
 const updateStatus = (status) => statusStore.set('enphase', status);
 const WMax = 1000000; // 1kW
 
-let jwt = null;
+const auth = {
+  jwt: null,
+  sessionCookie: null,
+};
 let lastStatusCode = null;
-let sessionCookie = null;
 let timeout = null;
 
 const updateSessionCookie = (headers = {}) => {
   const cookie = 'set-cookie' in headers && headers['set-cookie'][0];
   if (cookie && cookie.startsWith('sessionId=')) {
-    sessionCookie = cookie.substring(0, cookie.indexOf(';'));
+    auth.sessionCookie = cookie.substring(0, cookie.indexOf(';'));
     return cookie;
   }
   return null;
 };
 
+const tsToUTC = (ts = null) => {
+  const date = ts > 0 ? new Date(ts * 1000) : new Date();
+  return date.toUTCString();
+};
+
 const getSessionCookie = () =>
   new Promise((resolve, reject) => {
-    sessionCookie = null;
-    if (!jwt) {
+    auth.sessionCookie = null;
+    if (!auth.jwt) {
       return reject('no jwt');
     }
 
@@ -38,20 +45,20 @@ const getSessionCookie = () =>
           timeout: 2000,
           rejectUnauthorized: false,
           headers: {
-            Authorization: `Bearer ${jwt}`,
+            Authorization: `Bearer ${auth.jwt}`,
           },
         },
         (res) => {
           const { statusCode, statusMessage, headers } = res;
           updateStatus({
-            jwt: `${statusCode} ${statusMessage} ${new Date().toUTCString()}`,
+            jwtCheck: `${statusCode} ${statusMessage} ${tsToUTC()}`,
           });
 
           if (statusCode === 200 && headers && updateSessionCookie(headers)) {
             return resolve();
           }
 
-          jwt = null;
+          auth.jwt = null;
           reject(statusCode);
         }
       )
@@ -66,7 +73,7 @@ const getSessionCookie = () =>
 
 const enableLiveData = () =>
   new Promise((resolve, reject) => {
-    if (!sessionCookie) {
+    if (!auth.sessionCookie) {
       reject('no session cookie');
       return;
     }
@@ -85,13 +92,13 @@ const enableLiveData = () =>
             'Content-Length': body.length,
             'Content-Type': 'application/json',
             Accept: 'application/json',
-            Cookie: sessionCookie,
+            Cookie: auth.sessionCookie,
           },
         },
         (res) => {
           const { statusCode, statusMessage, headers } = res;
           updateStatus({
-            stream: `${statusCode} ${statusMessage} ${new Date().toUTCString()}`,
+            stream: `${statusCode} ${statusMessage} ${tsToUTC()}`,
           });
 
           if (statusCode === 200) {
@@ -111,7 +118,8 @@ const enableLiveData = () =>
                   reject('failed to enable stream');
                 }
               } catch (exception) {
-                reject(exception);z
+                reject(exception);
+                z;
               }
             });
             return;
@@ -136,12 +144,12 @@ export const clearLiveData = () => {
     solar: null,
     usage: null,
   });
-}
+};
 
 const getLiveData = async () =>
   new Promise((resolve, reject) => {
     timeout && clearTimeout(timeout);
-    if (!sessionCookie) {
+    if (!auth.sessionCookie) {
       reject('no session cookie');
       return;
     }
@@ -156,7 +164,7 @@ const getLiveData = async () =>
           timeout: 2000,
           rejectUnauthorized: false,
           headers: {
-            Cookie: sessionCookie,
+            Cookie: auth.sessionCookie,
           },
         },
         async (res) => {
@@ -183,9 +191,9 @@ const getLiveData = async () =>
               res.on('end', async () => {
                 const parsedData = JSON.parse(resData);
 
-                parsedData.meters.last_update = new Date(
-                  parsedData.meters.last_update * 1000
-                ).toUTCString();
+                parsedData.meters.last_update = tsToUTC(
+                  parsedData.meters.last_update
+                );
 
                 updateStatus(parsedData);
 
@@ -211,7 +219,7 @@ const getLiveData = async () =>
             clearLiveData();
             updateStatus({
               error,
-              errorTs: new Date().toUTCString(),
+              errorTs: tsToUTC(),
             });
             timeout = setTimeout(getLiveData, 80000);
           } finally {
@@ -224,7 +232,7 @@ const getLiveData = async () =>
         clearLiveData();
         updateStatus({
           error,
-          errorTs: new Date().toUTCString(),
+          errorTs: tsToUTC(),
         });
         timeout = setTimeout(getLiveData, 80000);
         resolve();
@@ -237,11 +245,31 @@ const handleResponse = async (req, res) => {
   try {
     const params = new URLSearchParams(req.url.split('?').pop());
     if (params.has('token')) {
-      jwt = params.get('token');
+      auth.jwt = params.get('token');
+
+      const {
+        iss,
+        enphaseUser,
+        exp = 0,
+        iat = 0,
+        username,
+      } = JSON.parse(
+        new Buffer.from(auth.jwt.split('.')[1], 'base64').toString('utf8')
+      );
+      updateStatus({
+        jwt: {
+          enphaseUser,
+          exp: tsToUTC(exp),
+          iat: tsToUTC(iat),
+          iss,
+          username,
+        },
+      });
+
       await getSessionCookie();
     }
 
-    if (sessionCookie) {
+    if (auth.sessionCookie) {
       await getLiveData();
     } else {
       updateStatus({
@@ -251,7 +279,7 @@ const handleResponse = async (req, res) => {
   } catch (error) {
     updateStatus({
       error,
-      errorTs: new Date().toUTCString(),
+      errorTs: tsToUTC(),
     });
   }
 
