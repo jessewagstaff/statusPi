@@ -35,7 +35,8 @@ const getAccessToken = (postData) =>
           const { statusCode, statusMessage } = res;
 
           statusStore.set('spotify', {
-            auth: statusMessage,
+            auth: `${statusCode} ${statusMessage}`,
+            authTs: new Date().toUTCString(),
           });
 
           if (statusCode === 200) {
@@ -119,7 +120,7 @@ const getNowPlaying = async () => {
                   image,
                   name,
                   playing,
-                  status: statusMessage,
+                  status: `${statusCode} ${statusMessage}`,
                 });
 
                 updateDisplay({
@@ -131,7 +132,7 @@ const getNowPlaying = async () => {
                 });
               } catch (error) {
                 statusStore.set('spotify', {
-                  status: statusMessage,
+                  status: `${statusCode} ${statusMessage}`,
                   lastError: error,
                   lastErrorTs: new Date().toUTCString(),
                 });
@@ -153,7 +154,7 @@ const getNowPlaying = async () => {
           statusStore.set('spotify', {
             lastCheck: new Date().toUTCString(),
             playing: false,
-            status: statusMessage,
+            status: `${statusCode} ${statusMessage}`,
           });
 
           if (statusCode === 401) {
@@ -162,12 +163,6 @@ const getNowPlaying = async () => {
             await getAccessToken(
               `grant_type=refresh_token&refresh_token=${auth.refresh_token}`
             );
-            if (auth.access_token) {
-              getNowPlaying();
-            }
-
-            resolve();
-            return;
           }
 
           if (statusCode === 400) {
