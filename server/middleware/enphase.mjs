@@ -98,7 +98,7 @@ const enableLiveData = () =>
         (res) => {
           const { statusCode, statusMessage, headers } = res;
           updateStatus({
-            stream: `${statusCode} ${statusMessage} ${tsToUTC()}`,
+            streamEnable: `${statusCode} ${statusMessage} ${tsToUTC()}`,
           });
 
           if (statusCode === 200) {
@@ -111,15 +111,14 @@ const enableLiveData = () =>
 
             res.on('end', () => {
               try {
-                const parsedData = JSON.parse(resData);
-                if (parsedData.sc_stream === 'enabled') {
+                const { sc_stream } = JSON.parse(resData);
+                if (sc_stream === 'enabled') {
                   resolve();
                 } else {
                   reject('failed to enable stream');
                 }
               } catch (exception) {
                 reject(exception);
-                z;
               }
             });
             return;
