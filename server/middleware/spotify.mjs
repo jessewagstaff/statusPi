@@ -55,11 +55,14 @@ const getAccessToken = (postData) =>
 
               resolve();
             });
-          } else {
+            return;
+          }
+
+          if (statusCode < 500) {
             auth.access_token = null;
             auth.refresh_token = null;
-            resolve();
           }
+          resolve();
         }
       )
       .on('error', (error) => {

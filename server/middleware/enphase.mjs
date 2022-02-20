@@ -143,12 +143,19 @@ export const clearLiveData = () => {
     solar: null,
     usage: null,
   });
+  updateStatus({
+    clearedDisplay: tsToUTC(),
+  });
 };
 
 const getLiveData = async () =>
   new Promise((resolve, reject) => {
     timeout && clearTimeout(timeout);
     if (!auth.sessionCookie) {
+      updateStatus({
+        error: 'no session cookie',
+        errorTs: tsToUTC(),
+      });
       reject('no session cookie');
       return;
     }
@@ -169,13 +176,13 @@ const getLiveData = async () =>
         async (res) => {
           const { statusCode, statusMessage, headers } = res;
           updateStatus({
-            status: `${statusCode} ${statusMessage}`,
+            status: `${statusCode} ${statusMessage} ${tsToUTC()}`,
           });
           try {
             // cookie session has expired, go get another one
             if (statusCode === 401 && lastStatusCode !== statusCode) {
               await getSessionCookie();
-              await getLiveData();
+              getLiveData();
               return;
             }
 

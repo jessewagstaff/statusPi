@@ -23,7 +23,7 @@ const getTideData = () => {
       (res) => {
         const { statusCode, statusMessage, headers } = res;
         statusStore.set('tides', {
-          status: statusMessage,
+          status: `${statusCode} ${statusMessage}`,
           lastUpdate: headers['last-modified'],
         });
 
