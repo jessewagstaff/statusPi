@@ -162,7 +162,6 @@ const getNowPlaying = async () => {
 
           if (statusCode === 401) {
             // access_token has expired, go get another one
-            auth.access_token = null;
             await getAccessToken(
               `grant_type=refresh_token&refresh_token=${auth.refresh_token}`
             );
