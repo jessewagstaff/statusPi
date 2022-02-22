@@ -79,9 +79,9 @@ const getAccessToken = (postData) =>
 const getNowPlaying = async () => {
   timeout && clearTimeout(timeout);
 
-  if (!auth.access_token) {
+  if (!auth.refresh_token) {
     statusStore.set('spotify', {
-      status: 'needs access token',
+      status: 'needs refresh token',
     });
     return;
   }
