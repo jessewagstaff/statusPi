@@ -32,7 +32,6 @@ const props = defineProps({
 <style scoped>
 section {
   display: grid;
-  padding: 8px 0;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: auto 1fr;
   grid-gap: 15px;
@@ -41,6 +40,10 @@ section {
   font-family: 'Roboto Condensed', sans-serif;
   font-size: 28px;
   line-height: 28px;
+}
+
+header {
+  margin-top: 8px;
 }
 
 h1 {
@@ -53,16 +56,10 @@ h1 {
   color: white;
 }
 
-.playing img {
-  opacity: 1;
-}
-
 img {
   align-self: start;
   grid-row: 1/-1;
-  opacity: 0.5;
   background: #0e0e0e;
   height: 100%;
-  margin-left: 8px;
 }
 </style>
