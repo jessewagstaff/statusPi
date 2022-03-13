@@ -167,17 +167,6 @@ const getNowPlaying = async () => {
             );
           }
 
-          if (statusCode === 400) {
-            statusStore.set('spotify', {
-              lastError: 'Bad Request. Clearing tokens',
-              lastErrorTs: new Date().toUTCString(),
-            });
-            auth.access_token = null;
-            auth.refresh_token = null;
-            resolve();
-            return;
-          }
-
           // 204 = spotify says hold back. nothing is playing
           timeout = setTimeout(getNowPlaying, 60000);
           resolve();
