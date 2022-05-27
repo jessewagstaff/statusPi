@@ -4,13 +4,11 @@ import http from 'http';
 import path, { dirname } from 'path';
 import serveStatic from 'serve-static';
 
-import enphase, { clearLiveData } from './middleware/enphase.mjs';
+import enphase from './middleware/enphase.mjs';
 import refresh from './middleware/refresh.mjs';
 import spotify from './middleware/spotify.mjs';
 import weatherStation from './middleware/weatherStation.mjs';
-import status, { statusStore } from './middleware/status.mjs';
-
-import { onConnect } from './updateDisplay.mjs';
+import status from './middleware/status.mjs';
 
 import tides from './tides.mjs';
 
@@ -28,11 +26,7 @@ app.use('/status', status);
 
 const server = http.createServer(app).listen(port);
 
-onConnect(() => {
-  statusStore.clear();
-  clearLiveData();
-  tides();
-});
+tides();
 
 process.once('SIGTERM', async () => {
   try {

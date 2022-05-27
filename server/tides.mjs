@@ -1,9 +1,21 @@
 import https from 'https';
 
 import { statusStore } from './middleware/status.mjs';
-import updateDisplay from './updateDisplay.mjs';
+import updateDisplay, { onConnect } from './updateDisplay.mjs';
 
 let timeout = null;
+let swellChart = null;
+
+const displaySwellChart = () => {
+  if (swellChart) {
+    updateDisplay({
+      type: 'ocean',
+      swellChart,
+    });
+  }
+}
+
+onConnect(displaySwellChart);
 
 const getTideData = () => {
   timeout && clearTimeout(timeout);
@@ -36,10 +48,8 @@ const getTideData = () => {
           });
 
           res.on('end', () => {
-            updateDisplay({
-              type: 'ocean',
-              swellChart: img,
-            });
+            swellChart = img;
+            displaySwellChart();
           });
         }
 
