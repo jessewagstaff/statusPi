@@ -61,6 +61,9 @@ const getAccessToken = (postData) =>
           if (statusCode < 500) {
             auth.access_token = null;
             auth.refresh_token = null;
+            try {
+              fs.unlinkSync(config.tokenPath);
+            } catch (e) {}
           }
           resolve();
         }
@@ -200,35 +203,26 @@ const handleResponse = async (req, res) => {
       `grant_type=authorization_code&code=${code}&redirect_uri=${redirectUri}`
     );
   } else if (!auth.refresh_token) {
-    const authParams = new URLSearchParams();
-    authParams.set('client_id', config.clientId);
-    authParams.set('redirect_uri', redirectUri);
-    authParams.set('scope', 'user-read-currently-playing');
-    authParams.set('response_type', 'code');
-    res.writeHead(307, {
-      Location: `https://accounts.spotify.com/en/authorize?${authParams}`,
-    });
-    res.end();
-    return;
+
+    try {
+      auth.refresh_token = fs.readFileSync(config.tokenPath, 'utf8');
+    } catch (err) {
+      const authParams = new URLSearchParams();
+      authParams.set('client_id', config.clientId);
+      authParams.set('redirect_uri', redirectUri);
+      authParams.set('scope', 'user-read-currently-playing');
+      authParams.set('response_type', 'code');
+      res.writeHead(307, {
+        Location: `https://accounts.spotify.com/en/authorize?${authParams}`,
+      });
+      res.end();
+      return;
+    }
   }
 
   await getNowPlaying();
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(statusStore.get('spotify')));
 };
-
-try {
-  const token = fs.readFileSync(config.tokenPath, 'utf8');
-  if (token) {
-    auth.refresh_token = token;
-    getAccessToken(`grant_type=refresh_token&refresh_token=${token}`).then(
-      getNowPlaying
-    );
-  }
-} catch (err) {
-  statusStore.set('spotify', {
-    auth: 'Needs Auth @ /spotify',
-  });
-}
 
 export default handleResponse;
