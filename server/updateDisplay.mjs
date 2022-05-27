@@ -1,11 +1,13 @@
 import websocket from 'ws';
+import { statusStore } from './middleware/status.mjs';
 
 const callbacks = new Map();
 const port = 8081;
 const wss = new websocket.Server({ port });
+statusStore.set('websocketClients', 0);
 
-wss.on('connection', (socket) => {
-  socket.send(JSON.stringify({ type: 'connected' }));
+wss.on('connection', (ws) => {
+  statusStore.set('websocketClients', wss.clients.size);
   setTimeout(() => {
     for (const callback of callbacks.values()) {
       if (callback) {
@@ -20,9 +22,11 @@ const updateDisplay = (payload = {}) => {
     payload.type = 'unknown';
   }
   const stringified = JSON.stringify(payload);
-  wss.clients.forEach((client) => {
-    if (client.readyState === websocket.OPEN) {
-      client.send(stringified);
+
+  statusStore.set('websocketClients', wss.clients.size);
+  wss.clients.forEach((ws) => {
+    if (ws.readyState === websocket.OPEN) {
+      ws.send(stringified);
     }
   });
 };
