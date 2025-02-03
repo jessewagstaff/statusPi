@@ -34,15 +34,15 @@ const divisor = 0.5;
 const points = computed(() => {
   const len = props.data.length;
 
-  const max = props.max === null ? Math.max(...props.data) : props.max;
-  const min = props.min === null ? Math.min(...props.data) : props.min;
+  const maxY = props.max === null ? Math.max(...props.data) : props.max;
+  const minY = props.min === null ? Math.min(...props.data) : props.min;
 
-  const vfactor = props.height / (max - min || 2);
   const hfactor = width / (len - (len > 1 ? 1 : 0));
+  const vfactor = props.height / (maxY - minY || 2);
 
   return props.data.map((val, index) => ({
     x: index * hfactor,
-    y: (max === min ? 1 : max - val) * vfactor,
+    y: (maxY === minY ? 1 : maxY - val) * vfactor,
   }));
 });
 
@@ -56,7 +56,7 @@ const linePoints = computed(() =>
 );
 
 const closePolyPoints = computed(() => {
-  return `${linePoints.value} L${points.value[points.value.length - 1].x} ${
+  return linePoints.value && `${linePoints.value} L${points.value[points.value.length - 1].x} ${
     props.height
   } 0 ${props.height} 0 ${points.value[0].y}`;
 });
